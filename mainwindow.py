@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QDateEdit
+from PySide6.QtWidgets import QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QDateEdit, QCheckBox
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QDate
 from pathlib import Path
@@ -6,6 +6,7 @@ import datetime
 
 
 #IGNORE
+"""
 class MainWindow2(QMainWindow):
     def __init__(self,app):
         super().__init__()
@@ -80,8 +81,7 @@ class MainWindow2(QMainWindow):
         
     def quit(self):
         self.app.quit()
-
-
+"""
 
 
 class MainWindow(QMainWindow):
@@ -90,13 +90,47 @@ class MainWindow(QMainWindow):
         self.app = app
         self.setWindowTitle("To-do")
         self.setWindowIcon(QIcon("pyqt/exp/programa_todo/start.png"))
+        central_widget = QWidget()
 
         self.task_list = []
+        self.task_check_box_list = []
         self.load_tasks()
-        print(f"Loaded tasks:{self.task_list}")
-        self.task_list.append("\nejemplo")
+        
+        ###### ESTO ES UN TEST ##########
+        #self.task_list.append("ejemplo")
+
         self.save_tasks()
-        print(f"Saved tasks:{self.task_list}")
+        layout = QVBoxLayout()
+
+
+        for task in self.task_list:
+            task_layout = QHBoxLayout()
+            task_check_box = QCheckBox(task)
+            task_layout.addWidget(task_check_box)
+            layout.addLayout(task_layout)
+            # Append the task_check_box to the list
+            self.task_check_box_list.append(task_check_box)
+
+        for task_check_box in self.task_check_box_list:
+            task_check_box.toggled.connect(self.check_box_clicked)
+
+        central_widget.setLayout(layout)
+        self.setCentralWidget(central_widget)        
+
+
+
+    def check_box_clicked(self, checked):
+        task_check_box = self.sender()  # Get the checkbox that emitted the signal
+        font = task_check_box.font()
+        
+        if checked:
+            print("is checked")
+            font.setStrikeOut(True)
+            task_check_box.setFont(font)
+        else:
+            print("not checked")
+            font.setStrikeOut(False)
+            task_check_box.setFont(font)
 
 
     # Save task in a file
@@ -104,11 +138,10 @@ class MainWindow(QMainWindow):
         with open(Path(__file__).with_name("todo.txt"), 'w') as file:
             for task in self.task_list:
                 file.write(task + '\n')
+        print(f"Saved tasks:{self.task_list}")
 
     # Load tasks from a file
     def load_tasks(self):
         with open(Path(__file__).with_name("todo.txt"), 'r') as file:
             self.task_list = file.read().splitlines()
-
-    def test_function(self):
-        pass
+        print(f"Loaded tasks:{self.task_list}")
