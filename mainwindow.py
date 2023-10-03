@@ -109,3 +109,6 @@ class MainWindow(QMainWindow):
     def load_tasks(self):
         with open(Path(__file__).with_name("todo.txt"), 'r') as file:
             self.task_list = file.read().splitlines()
+
+    def test_functino(self):
+        pass
