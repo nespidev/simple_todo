@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QDateEdit, QCheckBox
+from PySide6.QtWidgets import QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QDateEdit, QCheckBox, QGroupBox
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import QDate
 from pathlib import Path
@@ -88,9 +88,10 @@ class MainWindow(QMainWindow):
     def __init__(self, app):
         super().__init__()
         self.app = app
-        self.setWindowTitle("To-do")
+        self.setWindowTitle("Simple Todo")
         self.setWindowIcon(QIcon("pyqt/exp/programa_todo/start.png"))
         central_widget = QWidget()
+        todo_box = QGroupBox("To do:")
 
         self.task_list = []
         self.task_check_box_list = []
@@ -102,22 +103,38 @@ class MainWindow(QMainWindow):
         self.save_tasks()
         layout = QVBoxLayout()
 
+        new_task_layout = QHBoxLayout()
+        new_task_label = QLabel("New task:")
+        self.new_task_line_edit = QLineEdit()
+        add_task_button = QPushButton("Add")
+        add_task_button.clicked.connect(self.add_task_button_clicked)
 
+        new_task_layout.addWidget(new_task_label)
+        new_task_layout.addWidget(self.new_task_line_edit)
+        new_task_layout.addWidget(add_task_button)
+        
+        task_layout = QVBoxLayout()
         for task in self.task_list:
-            task_layout = QHBoxLayout()
             task_check_box = QCheckBox(task)
             task_layout.addWidget(task_check_box)
-            layout.addLayout(task_layout)
             # Append the task_check_box to the list
             self.task_check_box_list.append(task_check_box)
 
         for task_check_box in self.task_check_box_list:
             task_check_box.toggled.connect(self.check_box_clicked)
 
+        layout.addLayout(new_task_layout)
+        todo_box.setLayout(task_layout)
+        layout.addWidget(todo_box)
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)        
 
 
+    def add_task_button_clicked(self):
+        self.task_list.append(self.new_task_line_edit.text())
+        # self.save_tasks()
+        # self.load_tasks()
+        self.new_task_line_edit.clear()
 
     def check_box_clicked(self, checked):
         task_check_box = self.sender()  # Get the checkbox that emitted the signal
