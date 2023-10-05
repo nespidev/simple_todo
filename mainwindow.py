@@ -1,16 +1,26 @@
-from PySide6.QtWidgets import QApplication, QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QCheckBox, QGroupBox, QSizePolicy, QScrollArea
+from PySide6.QtWidgets import QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QCheckBox, QScrollArea
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt, QSize
-import json
+from PySide6.QtCore import Qt
 from pathlib import Path
+import json
+import os
+import sys
+import resource_rc
 
+# mainwindow.py - Defines the MainWindow class for the Simple Todo application.
 class MainWindow(QMainWindow):
     def __init__(self, app):
         super().__init__()
         self.app = app
         self.setWindowTitle("Simple Todo")
-        self.setWindowIcon(QIcon("pyqt/exp/simple_todo/start.png"))
+        self.setWindowIcon(QIcon(":/start.png"))
         self.resize(400,550)
+
+        # Determine the path to the script's directory
+        script_dir = Path(os.path.dirname(sys.argv[0]))
+
+        # Use the script directory to find the bundled data
+        self.data_path = script_dir
 
         central_widget = QWidget()
         self.scroll_area = QScrollArea()  # Create a scroll area
@@ -38,7 +48,6 @@ class MainWindow(QMainWindow):
             task_check_box = QCheckBox(task)
             task_check_box.setChecked(checked)
             self.task_layout.addWidget(task_check_box)
-            task_check_box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)  # Set minimum height for checkboxes
             self.task_check_box_list.append(task_check_box)
 
         self.task_layout.setAlignment(Qt.AlignTop)
@@ -46,7 +55,6 @@ class MainWindow(QMainWindow):
         for task_check_box in self.task_check_box_list:
             task_check_box.toggled.connect(self.check_box_clicked)
             if task_check_box.isChecked():
-                # Set font strikeout for initially checked checkboxes
                 font = task_check_box.font()
                 font.setStrikeOut(True)
                 task_check_box.setFont(font)
@@ -72,9 +80,8 @@ class MainWindow(QMainWindow):
         text = self.new_task_line_edit.text()
         if text != "":
             new_task_check_box = QCheckBox(text)
-            new_task_check_box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)  # Set minimum height for checkboxes
             self.task_layout.addWidget(new_task_check_box)
-            task_item = [text, False]  # Add the task as a list [text, checked)]
+            task_item = [text, False]
             self.task_list.append(task_item)
             self.task_check_box_list.append(new_task_check_box)
             new_task_check_box.toggled.connect(self.check_box_clicked)
@@ -121,18 +128,23 @@ class MainWindow(QMainWindow):
         
         self.save_tasks()
 
-    # Save tasks to a JSON file
-    def save_tasks(self):
-        with open(Path(__file__).with_name("todo.json"), 'w') as file:
-            json.dump(self.task_list, file, indent=4)
-        print(f"Saved tasks:{self.task_list}")
 
-    # Load tasks from a JSON file
+    def save_tasks(self):
+        # Use the data_path to create the full path to todo.json
+        todo_path = self.data_path / "todo.json"
+
+        with open(todo_path, 'w') as file:
+            json.dump(self.task_list, file, indent=4)
+        print(f"Saved tasks: {self.task_list}")
+
     def load_tasks(self):
         try:
-            with open(Path(__file__).with_name("todo.json"), 'r') as file:
+            # Use the data_path to create the full path to todo.json
+            todo_path = self.data_path / "todo.json"
+
+            with open(todo_path, 'r') as file:
                 self.task_list = json.load(file)
         except FileNotFoundError:
             self.task_list = []
 
-        print(f"Loaded tasks:{self.task_list}")
+        print(f"Loaded tasks: {self.task_list}")
