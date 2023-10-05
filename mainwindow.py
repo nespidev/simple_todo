@@ -1,8 +1,8 @@
-from PySide6.QtWidgets import QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QDateEdit, QCheckBox, QGroupBox, QSizePolicy, QScrollArea
+from PySide6.QtWidgets import QApplication, QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QCheckBox, QGroupBox, QSizePolicy, QScrollArea
 from PySide6.QtGui import QIcon
-from PySide6.QtCore import QDate, Qt, QSize
+from PySide6.QtCore import Qt, QSize
+import json
 from pathlib import Path
-import datetime
 
 class MainWindow(QMainWindow):
     def __init__(self, app):
@@ -10,6 +10,8 @@ class MainWindow(QMainWindow):
         self.app = app
         self.setWindowTitle("Simple Todo")
         self.setWindowIcon(QIcon("pyqt/exp/simple_todo/start.png"))
+        self.resize(400,550)
+
         central_widget = QWidget()
         self.scroll_area = QScrollArea()  # Create a scroll area
         self.todo_widget = QWidget()
@@ -32,15 +34,22 @@ class MainWindow(QMainWindow):
         new_task_layout.addWidget(self.add_task_button)
         
         self.task_layout = QVBoxLayout()
-        for task in self.task_list:
+        for task, checked in self.task_list:
             task_check_box = QCheckBox(task)
+            task_check_box.setChecked(checked)
             self.task_layout.addWidget(task_check_box)
+            task_check_box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)  # Set minimum height for checkboxes
             self.task_check_box_list.append(task_check_box)
 
         self.task_layout.setAlignment(Qt.AlignTop)
 
         for task_check_box in self.task_check_box_list:
             task_check_box.toggled.connect(self.check_box_clicked)
+            if task_check_box.isChecked():
+                # Set font strikeout for initially checked checkboxes
+                font = task_check_box.font()
+                font.setStrikeOut(True)
+                task_check_box.setFont(font)
 
         done_button_layout = QHBoxLayout()
         done_button = QPushButton("Done")
@@ -51,6 +60,7 @@ class MainWindow(QMainWindow):
 
         # Add the group box to the scroll area
         self.scroll_area.setWidget(self.todo_widget)
+        self.scroll_area.setWidgetResizable(True)  # Allow the widget to resize
 
         layout.addLayout(new_task_layout)
         layout.addWidget(self.scroll_area)  # Add the scroll area to the layout
@@ -62,8 +72,10 @@ class MainWindow(QMainWindow):
         text = self.new_task_line_edit.text()
         if text != "":
             new_task_check_box = QCheckBox(text)
+            new_task_check_box.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)  # Set minimum height for checkboxes
             self.task_layout.addWidget(new_task_check_box)
-            self.task_list.append(text)
+            task_item = [text, False]  # Add the task as a list [text, checked)]
+            self.task_list.append(task_item)
             self.task_check_box_list.append(new_task_check_box)
             new_task_check_box.toggled.connect(self.check_box_clicked)
             self.new_task_line_edit.clear()
@@ -72,7 +84,7 @@ class MainWindow(QMainWindow):
     def check_box_clicked(self, checked):
         task_check_box = self.sender()  # Get the checkbox that emitted the signal
         font = task_check_box.font()
-        
+
         if checked:
             print("is checked")
             font.setStrikeOut(True)
@@ -82,34 +94,45 @@ class MainWindow(QMainWindow):
             font.setStrikeOut(False)
             task_check_box.setFont(font)
 
+        # Update the task_list with the checkbox state
+        for task_item in self.task_list:
+            if task_item[0] == task_check_box.text():
+                task_item[1] = checked  # Update the checkbox state in the existing list
+
+        self.save_tasks()
+
+
 
     def done_button_clicked(self):
         print(str(self.task_list))
-        print(str(self.task_check_box_list))
-        check_boxes_to_remove = []
-        for check_box in self.task_check_box_list:
-            if check_box.isChecked():
-                check_boxes_to_remove.append(check_box)
 
-        for check_box in check_boxes_to_remove:
-            self.task_list.remove(check_box.text())
-            self.task_check_box_list.remove(check_box)
-            check_box.deleteLater()
-            self.task_layout.removeWidget(check_box)
+        items_to_remove = []
+        
+        for i, check_box in enumerate(self.task_check_box_list):
+            if check_box.isChecked():
+                items_to_remove.append(i)
+        
+        # Remove items from the end of the list to avoid index shifting issues
+        items_to_remove.sort(reverse=True)
+        for i in items_to_remove:
+            removed_item = self.task_list.pop(i)
+            self.task_check_box_list[i].deleteLater()
+            self.task_check_box_list.pop(i)
         
         self.save_tasks()
 
-    # Save task in a file
+    # Save tasks to a JSON file
     def save_tasks(self):
-        with open(Path(__file__).with_name("todo.txt"), 'w') as file:
-            for task in self.task_list:
-                file.write(task + '\n')
+        with open(Path(__file__).with_name("todo.json"), 'w') as file:
+            json.dump(self.task_list, file, indent=4)
         print(f"Saved tasks:{self.task_list}")
 
-    # Load tasks from a file
+    # Load tasks from a JSON file
     def load_tasks(self):
-        with open(Path(__file__).with_name("todo.txt"), 'r') as file:
-            self.task_list = file.read().splitlines()
-        print(f"Loaded tasks:{self.task_list}")
+        try:
+            with open(Path(__file__).with_name("todo.json"), 'r') as file:
+                self.task_list = json.load(file)
+        except FileNotFoundError:
+            self.task_list = []
 
- 
+        print(f"Loaded tasks:{self.task_list}")
