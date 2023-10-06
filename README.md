@@ -1,6 +1,6 @@
 # simple_todo
 
-![simple_todo_screenshot](https://github.com/nespidev/simple_todo/assets/108963636/edae5c90-4e15-48c4-b511-f8c52e3b3252)
+![simple_todo_screenshot](https://github.com/nespidev/simple_todo/assets/108963636/7ae1844f-7c28-4019-b73a-0bdf6942984f)
 
 ## [ENG]
 A simple todo app.
