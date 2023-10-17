@@ -1,14 +1,31 @@
 from PySide6.QtWidgets import QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QCheckBox, QScrollArea
-from PySide6.QtGui import QIcon
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QDrag, QPixmap
+from PySide6.QtCore import Qt, QMimeData, Signal
 from pathlib import Path
 import json
 import os
 import sys
 import resource_rc
 
-# mainwindow.py - Defines the MainWindow class for the Simple Todo application.
+
+class DragCheck(QCheckBox):
+
+    def mouseMoveEvent(self, e):
+            
+        if e.buttons() == Qt.LeftButton:
+            drag = QDrag(self)
+            mime = QMimeData()
+            drag.setMimeData(mime)
+            pixmap = QPixmap(self.size())
+            self.render(pixmap)
+            drag.setPixmap(pixmap)
+
+            drag.exec(Qt.MoveAction)
+
 class MainWindow(QMainWindow):
+
+    orderChanged = Signal(list)
+
     def __init__(self, app):
         super().__init__()
         self.app = app
