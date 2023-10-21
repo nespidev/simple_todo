@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QCheckBox, QScrollArea
-from PySide6.QtGui import QIcon, QDrag, QPixmap
+from PySide6.QtGui import QIcon, QDrag, QPixmap, QPalette, QColor
 from PySide6.QtCore import Qt, QMimeData, Signal
 from pathlib import Path
 import json
@@ -33,6 +33,8 @@ class MainWindow(QMainWindow):
         self.setWindowIcon(QIcon(":/start.png"))
         self.resize(400,550)
 
+        self.setAcceptDrops(True)
+
         # Determine the path to the script's directory
         script_dir = Path(os.path.dirname(sys.argv[0]))
 
@@ -47,7 +49,7 @@ class MainWindow(QMainWindow):
         self.task_check_box_list = []
         self.load_tasks()
         
-        layout = QVBoxLayout()
+        general_layout = QVBoxLayout()
 
         new_task_layout = QHBoxLayout()
         new_task_label = QLabel("New task:")
@@ -62,7 +64,7 @@ class MainWindow(QMainWindow):
         
         self.task_layout = QVBoxLayout()
         for task, checked in self.task_list:
-            task_check_box = QCheckBox(task)
+            task_check_box = DragCheck(task)
             task_check_box.setChecked(checked)
             self.task_layout.addWidget(task_check_box)
             self.task_check_box_list.append(task_check_box)
@@ -87,16 +89,16 @@ class MainWindow(QMainWindow):
         self.scroll_area.setWidget(self.todo_widget)
         self.scroll_area.setWidgetResizable(True)  # Allow the widget to resize
 
-        layout.addLayout(new_task_layout)
-        layout.addWidget(self.scroll_area)  # Add the scroll area to the layout
-        layout.addLayout(done_button_layout)
-        central_widget.setLayout(layout)
+        general_layout.addLayout(new_task_layout)
+        general_layout.addWidget(self.scroll_area)  # Add the scroll area to the layout
+        general_layout.addLayout(done_button_layout)
+        central_widget.setLayout(general_layout)
         self.setCentralWidget(central_widget)  
 
     def add_task_button_clicked(self):
         text = self.new_task_line_edit.text()
         if text != "":
-            new_task_check_box = QCheckBox(text)
+            new_task_check_box = DragCheck(text)
             self.task_layout.addWidget(new_task_check_box)
             task_item = [text, False]
             self.task_list.append(task_item)
@@ -165,3 +167,46 @@ class MainWindow(QMainWindow):
             self.task_list = []
 
         print(f"Loaded tasks: {self.task_list}")
+
+    def dragEnterEvent(self, e):
+        e.accept()
+
+    def dragMoveEvent(self, e):
+        viewport_pos = self.scroll_area.viewport().mapFromGlobal(e.position().toPoint())
+        for n in range(self.task_layout.count()):
+            w = self.task_layout.itemAt(n).widget()
+            rect = w.geometry()
+            if rect.contains(viewport_pos):
+                palette = QPalette()
+                palette.setColor(QPalette.WindowText, QColor(173, 216, 230))  # Set the highlight color
+                palette.setColor(QPalette.Base, QColor(173, 216, 230))  # Set the highlight color
+                w.setPalette(palette)
+            else:
+                w.setPalette(self.palette())  # Reset the palette for other widgets
+        e.accept()
+
+    def dropEvent(self, e):
+        # Map the global position of the event to the local coordinates of the scroll area's viewport.
+        viewport_pos = self.scroll_area.viewport().mapFromGlobal(e.position().toPoint())
+        widget = e.source()
+        for n in range(self.task_layout.count()):
+            # Make sure checkboxes are not pressed (grayed out)
+            widget.setDown(False)
+            # Get the widget at each index in turn.
+            w = self.task_layout.itemAt(n).widget()
+            w.setPalette(self.palette())  # Reset the palette for all widgets
+            if viewport_pos.y() < w.y() + w.size().height():
+                # We didn't drag past this widget.
+                # insert below it.
+                self.task_layout.insertWidget(n, widget)
+                #self.orderChanged.emit(self.get_item_data())
+                break
+        else:
+            # Insert at the end if the drop position is below the last item
+            self.task_layout.insertWidget(self.task_layout.count() - 1, widget)
+        # Update the task_list with the current order in the task_layout
+        self.task_list = [[self.task_layout.itemAt(i).widget().text(), self.task_layout.itemAt(i).widget().isChecked()]
+                        for i in range(self.task_layout.count())]
+        self.save_tasks()
+        
+        e.accept()
