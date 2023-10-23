@@ -1,26 +1,12 @@
-from PySide6.QtWidgets import QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QCheckBox, QScrollArea
-from PySide6.QtGui import QIcon, QDrag, QPixmap, QPalette, QColor
-from PySide6.QtCore import Qt, QMimeData, Signal
+from PySide6.QtWidgets import QMainWindow, QLineEdit, QLabel, QPushButton, QHBoxLayout, QVBoxLayout, QWidget, QScrollArea
+from PySide6.QtGui import QIcon, QPalette, QColor
+from PySide6.QtCore import Qt, Signal
 from pathlib import Path
+from drag_check import DragCheck
 import json
 import os
 import sys
 import resource_rc
-
-
-class DragCheck(QCheckBox):
-
-    def mouseMoveEvent(self, e):
-            
-        if e.buttons() == Qt.LeftButton:
-            drag = QDrag(self)
-            mime = QMimeData()
-            drag.setMimeData(mime)
-            pixmap = QPixmap(self.size())
-            self.render(pixmap)
-            drag.setPixmap(pixmap)
-
-            drag.exec(Qt.MoveAction)
 
 class MainWindow(QMainWindow):
 
@@ -41,16 +27,18 @@ class MainWindow(QMainWindow):
         # Use the script directory to find the bundled data
         self.data_path = script_dir
 
-        central_widget = QWidget()
+        
+        central_widget = QWidget()  # Central widget required for MainWindow class
         self.scroll_area = QScrollArea()  # Create a scroll area
-        self.todo_widget = QWidget()
+        self.todo_widget = QWidget()  # Main widget which contains the new_task_layout, scroll_area(task_layout), and done_button.
 
-        self.task_list = []
-        self.task_check_box_list = []
+        self.task_list = [] # List which contains state and text from checkboxes, used to load to and dump from json
+        self.task_check_box_list = [] # List of checkbox objects
         self.load_tasks()
         
-        general_layout = QVBoxLayout()
+        general_layout = QVBoxLayout() # Layout of the app for central_widget
 
+        # new_task setup
         new_task_layout = QHBoxLayout()
         new_task_label = QLabel("New task:")
         self.new_task_line_edit = QLineEdit()
@@ -62,6 +50,7 @@ class MainWindow(QMainWindow):
         new_task_layout.addWidget(self.new_task_line_edit)
         new_task_layout.addWidget(self.add_task_button)
         
+        # Tasks setup
         self.task_layout = QVBoxLayout()
         for task, checked in self.task_list:
             task_check_box = DragCheck(task)
@@ -78,6 +67,7 @@ class MainWindow(QMainWindow):
                 font.setStrikeOut(True)
                 task_check_box.setFont(font)
 
+        #Done button setup
         done_button_layout = QHBoxLayout()
         done_button = QPushButton("Done")
         done_button.clicked.connect(self.done_button_clicked)
@@ -106,6 +96,7 @@ class MainWindow(QMainWindow):
             new_task_check_box.toggled.connect(self.check_box_clicked)
             self.new_task_line_edit.clear()
             self.save_tasks()
+            self.update_tab_order()
 
     def check_box_clicked(self, checked):
         task_check_box = self.sender()  # Get the checkbox that emitted the signal
@@ -146,6 +137,7 @@ class MainWindow(QMainWindow):
             self.task_check_box_list.pop(i)
         
         self.save_tasks()
+        self.update_tab_order()
 
 
     def save_tasks(self):
@@ -157,6 +149,7 @@ class MainWindow(QMainWindow):
         print(f"Saved tasks: {self.task_list}")
 
     def load_tasks(self):
+    #Loads todo.json into the task_list
         try:
             # Use the data_path to create the full path to todo.json
             todo_path = self.data_path / "todo.json"
@@ -172,7 +165,10 @@ class MainWindow(QMainWindow):
         e.accept()
 
     def dragMoveEvent(self, e):
+        # Get the vertical scroll bar's value to account for scrolling
+        scroll_bar_value = self.scroll_area.verticalScrollBar().value()
         viewport_pos = self.scroll_area.viewport().mapFromGlobal(e.position().toPoint())
+        viewport_pos.setY(viewport_pos.y() + scroll_bar_value)
         for n in range(self.task_layout.count()):
             w = self.task_layout.itemAt(n).widget()
             rect = w.geometry()
@@ -184,10 +180,14 @@ class MainWindow(QMainWindow):
             else:
                 w.setPalette(self.palette())  # Reset the palette for other widgets
         e.accept()
+        
 
     def dropEvent(self, e):
-        # Map the global position of the event to the local coordinates of the scroll area's viewport.
+        # Get the vertical scroll bar's value to account for scrolling
+        scroll_bar_value = self.scroll_area.verticalScrollBar().value()
         viewport_pos = self.scroll_area.viewport().mapFromGlobal(e.position().toPoint())
+        viewport_pos.setY(viewport_pos.y() + scroll_bar_value)
+
         widget = e.source()
         for n in range(self.task_layout.count()):
             # Make sure checkboxes are not pressed (grayed out)
@@ -208,5 +208,19 @@ class MainWindow(QMainWindow):
         self.task_list = [[self.task_layout.itemAt(i).widget().text(), self.task_layout.itemAt(i).widget().isChecked()]
                         for i in range(self.task_layout.count())]
         self.save_tasks()
-        
         e.accept()
+        self.update_tab_order()
+
+    def update_tab_order(self):
+        # Iterate through checkboxes in the layout, except the last one
+        for i in range(self.task_layout.count() - 1):
+            # Get the current and next checkbox widgets
+            current_widget = self.task_layout.itemAt(i).widget()
+            next_widget = self.task_layout.itemAt(i + 1).widget()
+
+            # Check if both widgets are not None
+            if current_widget and next_widget:
+                # Set the tab order between the current and next widgets
+                self.setTabOrder(current_widget, next_widget)
+
+        print("Updated focus order")
